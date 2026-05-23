@@ -1,4 +1,4 @@
-USE project;
+USE javadb;
 
 INSERT INTO categories(category_name) VALUES
 ('Electronics'),

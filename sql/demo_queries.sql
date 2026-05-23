@@ -1,4 +1,4 @@
-USE project;
+USE javadb;
 
 -- Categories and the products under them.
 SELECT c.category_name, p.product_name

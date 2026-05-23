@@ -3,6 +3,7 @@ import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
@@ -44,7 +45,7 @@ public class InventoryDashboard extends JFrame {
     private final JComboBox<SelectItem> purchaseProductCombo = new JComboBox<>();
 
     public InventoryDashboard() throws SQLException {
-        super("ER Diagram Inventory Project");
+        super("Inventory Project");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setSize(1050, 700);
         setMinimumSize(new Dimension(900, 580));
@@ -112,6 +113,9 @@ public class InventoryDashboard extends JFrame {
             customerName.setText("");
             refreshData();
         })));
+        form.add(new JLabel());
+        form.add(new JLabel());
+        form.add(button("Delete Selected", event -> runSafely(this::deleteSelectedMasterRow)));
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(new JScrollPane(masterTable), BorderLayout.CENTER);
@@ -139,6 +143,9 @@ public class InventoryDashboard extends JFrame {
             productName.setText("");
             refreshData();
         })));
+        form.add(new JLabel());
+        form.add(new JLabel());
+        form.add(button("Delete Selected", event -> runSafely(this::deleteSelectedProduct)));
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(new JScrollPane(productTable), BorderLayout.CENTER);
@@ -170,6 +177,10 @@ public class InventoryDashboard extends JFrame {
                     InputValidator.nonNegativeInt(reorderLevel, "Reorder Level"));
             refreshData();
         })));
+        form.add(new JLabel());
+        form.add(new JLabel());
+        form.add(button("Delete Selected", event -> runSafely(() -> deleteSelectedById(
+                inventoryTable, 0, "inventory row", "DELETE FROM inventory WHERE product_id = ?"))));
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(new JScrollPane(inventoryTable), BorderLayout.CENTER);
@@ -195,6 +206,10 @@ public class InventoryDashboard extends JFrame {
             quantity.setText("1");
             refreshData();
         })));
+        form.add(new JLabel());
+        form.add(new JLabel());
+        form.add(button("Delete Selected", event -> runSafely(() -> deleteSelectedById(
+                salesTable, 0, "sales order", "DELETE FROM sales_orders WHERE sales_order_id = ?"))));
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(new JScrollPane(salesTable), BorderLayout.CENTER);
@@ -220,6 +235,10 @@ public class InventoryDashboard extends JFrame {
             quantity.setText("1");
             refreshData();
         })));
+        form.add(new JLabel());
+        form.add(new JLabel());
+        form.add(button("Delete Selected", event -> runSafely(() -> deleteSelectedById(
+                purchaseTable, 0, "purchase order", "DELETE FROM purchase_orders WHERE purchase_order_id = ?"))));
 
         panel.add(form, BorderLayout.NORTH);
         panel.add(new JScrollPane(purchaseTable), BorderLayout.CENTER);
@@ -357,6 +376,153 @@ public class InventoryDashboard extends JFrame {
             }
             statement.executeUpdate();
         }
+    }
+
+    private void deleteSelectedMasterRow() throws SQLException {
+        int row = selectedModelRow(masterTable, "master data row");
+        String entity = String.valueOf(masterTable.getModel().getValueAt(row, 0));
+        Object id = masterTable.getModel().getValueAt(row, 1);
+        String name = String.valueOf(masterTable.getModel().getValueAt(row, 2));
+
+        if (confirmDelete(entity.toLowerCase() + " \"" + name + "\"")) {
+            deleteMasterRow(entity, id);
+            refreshData();
+        }
+    }
+
+    private static void deleteMasterRow(String entity, Object id) throws SQLException {
+        switch (entity) {
+            case "CATEGORY" -> deleteCategory(id);
+            case "SUPPLIER" -> deleteSupplier(id);
+            case "CUSTOMER" -> deleteCustomerWithOrders(id);
+            default -> throw new IllegalStateException("Unknown master data type: " + entity);
+        }
+    }
+
+    private static void deleteCategory(Object categoryId) throws SQLException {
+        int products = countReferences("SELECT COUNT(*) FROM products WHERE category_id = ?", categoryId);
+        if (products > 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete this category because " + products + " product(s) are assigned to it. "
+                            + "Delete or move those products first.");
+        }
+
+        execute("DELETE FROM categories WHERE category_id = ?", categoryId);
+    }
+
+    private static void deleteSupplier(Object supplierId) throws SQLException {
+        int products = countReferences("SELECT COUNT(*) FROM products WHERE supplier_id = ?", supplierId);
+        if (products > 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete this supplier because " + products + " product(s) use it. "
+                            + "Delete or move those products first.");
+        }
+
+        int purchaseOrders = countReferences("SELECT COUNT(*) FROM purchase_orders WHERE supplier_id = ?", supplierId);
+        if (purchaseOrders > 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete this supplier because " + purchaseOrders + " purchase order(s) use it. "
+                            + "Delete those purchase orders first.");
+        }
+
+        execute("DELETE FROM suppliers WHERE supplier_id = ?", supplierId);
+    }
+
+    private static void deleteCustomerWithOrders(Object customerId) throws SQLException {
+        try (Connection connection = DatabaseManager.openConnection()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement orderStatement = connection.prepareStatement(
+                    "DELETE FROM sales_orders WHERE customer_id = ?");
+                    PreparedStatement customerStatement = connection.prepareStatement(
+                            "DELETE FROM customers WHERE customer_id = ?")) {
+                orderStatement.setObject(1, customerId);
+                orderStatement.executeUpdate();
+                customerStatement.setObject(1, customerId);
+                customerStatement.executeUpdate();
+                connection.commit();
+            } catch (SQLException ex) {
+                connection.rollback();
+                throw ex;
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        }
+    }
+
+    private void deleteSelectedById(JTable table, int idColumn, String label, String sql) throws SQLException {
+        int row = selectedModelRow(table, label);
+        Object id = table.getModel().getValueAt(row, idColumn);
+        String description = label + " #" + id;
+        if (table.getModel().getColumnCount() > idColumn + 1) {
+            description += " (" + table.getModel().getValueAt(row, idColumn + 1) + ")";
+        }
+
+        if (confirmDelete(description)) {
+            execute(sql, id);
+            refreshData();
+        }
+    }
+
+    private void deleteSelectedProduct() throws SQLException {
+        int row = selectedModelRow(productTable, "product");
+        Object id = productTable.getModel().getValueAt(row, 0);
+        String description = "product #" + id + " (" + productTable.getModel().getValueAt(row, 1) + ")";
+
+        if (confirmDelete(description)) {
+            deleteProduct(id);
+            refreshData();
+        }
+    }
+
+    private static void deleteProduct(Object productId) throws SQLException {
+        int salesItems = countReferences("SELECT COUNT(*) FROM sales_order_items WHERE product_id = ?", productId);
+        if (salesItems > 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete this product because it appears in " + salesItems + " sales order(s). "
+                            + "Delete those sales orders first.");
+        }
+
+        int purchaseItems = countReferences(
+                "SELECT COUNT(*) FROM purchase_order_items WHERE product_id = ?", productId);
+        if (purchaseItems > 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete this product because it appears in " + purchaseItems + " purchase order(s). "
+                            + "Delete those purchase orders first.");
+        }
+
+        execute("DELETE FROM products WHERE product_id = ?", productId);
+    }
+
+    private static int countReferences(String sql, Object id) throws SQLException {
+        try (Connection connection = DatabaseManager.openConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, id);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                resultSet.next();
+                return resultSet.getInt(1);
+            }
+        }
+    }
+
+    private static int selectedModelRow(JTable table, String label) {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow < 0) {
+            throw new IllegalArgumentException("Please select a " + label + " to delete.");
+        }
+        return table.convertRowIndexToModel(selectedRow);
+    }
+
+    private boolean confirmDelete(String description) {
+        if (java.awt.GraphicsEnvironment.isHeadless()) {
+            return true;
+        }
+
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Delete " + description + "?",
+                "Confirm Delete",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        return choice == JOptionPane.YES_OPTION;
     }
 
     private void runSafely(SqlAction action) {
