@@ -1,64 +1,110 @@
-# Inventory Management System
 
-Java Swing and MySQL inventory management project for database application demonstration.
 
-## Features
+# 📊 Java Database Management System (Inventory Dashboard)
 
-- Product CRUD with supplier mapping.
-- Manual stock update from the Swing UI.
-- Multi-item order placement.
-- Order cancellation that restores stock.
-- Report tabs for low stock, inventory value, product sales, and stock movements.
-- SQL schema, sample data, DML examples, views, triggers, basic queries, and complex queries.
+An efficient, GUI-driven Java application built to manage database operations seamlessly. This project integrates a robust MySQL backend with an intuitive Java Swing frontend, designed specifically for tracking inventory, validating input dynamically, and managing data workflows.
 
-## Database Setup
+---
 
-Run the setup script in MySQL as an admin user:
+## 🚀 Features
 
-```powershell
-mysql -u root -p < sql\01_schema_and_seed.sql
+* **💻 Interactive Dashboard:** Real-time inventory tracking and UI-driven data manipulation via `InventoryDashboard.java`.
+* **🔌 Seamless MySQL Integration:** Automated or manual configuration with MySQL using the pre-configured `mysql-connector-j-9.7.0` driver.
+* **🛠️ Database Automations:** Instant database generation via setup scripts (`schema.sql` and `sample_data.sql`).
+* **🛡️ Robust Input Validation:** Built-in validation algorithms (`InputValidator.java`) preventing corrupt data entries or invalid types before hitting the database.
+* **💬 Responsive Dialogs:** Clean user messaging and error handlings utilizing structural layout dialogs (`DialogHelper.java`).
+
+---
+
+## 📁 Project Structure
+
+```text
+Javadbmsproject-main/
+│
+├── 📂 sql/                         # Database initialization files
+│   ├── schema.sql                  # Database tables and constraints definition
+│   ├── sample_data.sql             # Dummy data for immediate testing
+│   └── demo_queries.sql            # Built-in SQL queries for testing execution
+│
+├── 📂 src/                         # Java Source Code
+│   ├── Main.java                   # Main application entry point
+│   ├── InventoryDashboard.java     # Primary Swing GUI dashboard interface
+│   ├── DatabaseManager.java        # Core JDBC driver connections and CRUD executions
+│   ├── DatabaseSetup.java          # Automation for initial database/table setup
+│   ├── InputValidator.java         # Data format validation logic
+│   ├── DialogHelper.java           # Simplification wrapper for UI popups/alerts
+│   └── SelectItem.java             # Logic handling data row selection and extraction
+│
+└── 📂 .idea/                       # JetBrains IntelliJ configuration environment
+
 ```
 
-The Java application defaults to:
+---
 
-- Database: `project`
-- User: `javauser`
-- Password: `password123`
-- JDBC URL: `jdbc:mysql://localhost:3306/project?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC`
+## 🛠️ Prerequisites
 
-The setup script creates the database user and grants access.
+Before you begin, ensure you have the following installed:
 
-## Demonstration SQL
+* **Java Development Kit (JDK 11 or higher)**
+* **MySQL Server** (Running locally or hosted)
+* An IDE of choice (e.g., **IntelliJ IDEA** or Eclipse)
 
-After setup, run:
+---
 
-```powershell
-mysql -u javauser -p project < sql\02_basic_queries.sql
-mysql -u javauser -p project < sql\03_complex_queries.sql
+## ⚙️ Setup & Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/Javadbmsproject.git
+cd Javadbmsproject-main
+
 ```
 
-`02_basic_queries.sql` demonstrates basic SELECT, WHERE, INSERT, UPDATE, and DELETE operations.
+### 2. Configure the Database
 
-`03_complex_queries.sql` demonstrates joins, grouping, aggregate functions, views, subqueries, transactions, and trigger behavior.
+You can set up the database using your preferred MySQL CLI or GUI client (like Workbench):
 
-## Run the Swing App
+```bash
+# Log in to your MySQL terminal
+mysql -u your_username -p
 
-Open the project in IntelliJ IDEA and run `ui.MainFrame`.
+# Source the schema and sample data
+mysql> source sql/schema.sql;
+mysql> source sql/sample_data.sql;
 
-If `javac` is available on PATH, you can also compile from PowerShell:
-
-```powershell
-$jar = "$env:USERPROFILE\Downloads\mysql-connector-j-9.7.0\mysql-connector-j-9.7.0\mysql-connector-j-9.7.0.jar"
-$sources = Get-ChildItem src -Recurse -Filter *.java
-javac -cp $jar -d out\production\javadbproject $sources.FullName
-java -cp "out\production\javadbproject;$jar" ui.MainFrame
 ```
 
-To use different database credentials:
+*(Alternatively, the application's `DatabaseSetup.java` can automate table builds once connection variables are provided).*
 
-```powershell
-java -Dinventory.db.url="jdbc:mysql://localhost:3306/project?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" `
-     -Dinventory.db.user="javauser" `
-     -Dinventory.db.password="password123" `
-     -cp "out\production\javadbproject;$jar" ui.MainFrame
+### 3. Update Database Credentials
+
+Open `src/DatabaseManager.java` and adjust your connection string configurations:
+
+```java
+private static final String URL = "jdbc:mysql://localhost:3606/your_database_name";
+private static final String USER = "your_mysql_username";
+private static final String PASSWORD = "your_mysql_password";
+
 ```
+
+### 4. Build and Run
+
+If you are using **IntelliJ IDEA**:
+
+1. Open the root folder in IntelliJ.
+2. The `.idea` files will automatically configure the `mysql-connector-j-9.7.0.xml` library dependency.
+3. Open `src/Main.java` and click **Run**.
+
+---
+
+## 📊 Sample Queries Included
+
+To check data handling methods manually, consult `sql/demo_queries.sql`. These contain pre-built triggers/queries useful for modifying inventory behaviors outside the GUI.
+
+---
+
+## 🛡️ License
+
+Distributed under the MIT License. See `LICENSE` for more information (if applicable).
+
